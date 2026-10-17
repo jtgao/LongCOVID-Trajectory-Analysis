@@ -4,18 +4,9 @@
 Re-integrate T and B lineages by selecting cells from the OVERALL integrated object
 using Leiden cluster IDs, then re-running HVGs/PCA/UMAP/Leiden on each subset.
 
-Place this file at:
-  /dcs07/antar/data/analysis/long_covid_clonal/scripts_cluster/reintegrate_lineages_by_cluster.py
-
-Example:
-python /dcs07/antar/data/analysis/long_covid_clonal/scripts_cluster/reintegrate_lineages_by_cluster.py \
-  --h5ad /dcs07/antar/data/analysis/harry_qc/adata_all_raw_qc_harmony_umap.h5ad \
-  --out_base /dcs07/antar/data/analysis/long_covid_clonal \
-  --cluster_key leiden \
-  --t_clusters 0,16,2,3,6,7 \
-  --b_clusters 12,15,5,8 \
-  --leiden_resolution 0.8 \
-  --n_hvg 3000
+Inputs are supplied through command-line arguments. Select lineage cluster IDs
+from the overall object and provide an output directory. Optional patient
+mapping is a user-supplied table; do not publish that table.
 """
 
 import os
@@ -189,7 +180,7 @@ def run_reintegration(
     )
 
 
-    # --- Harmony integration on PCA to remove batch effects (Yi's note) ---
+    # --- Harmony integration on PCA to remove batch effects ---
     rep_for_neighbors = "X_pca"
     if do_harmony:
         if batch_key not in adata_sub.obs.columns:
