@@ -1,105 +1,122 @@
 # LongCOVID-Trajectory-Analysis
 
-This repository contains code for analyzing single-cell RNA-seq (scRNA-seq) data from Long COVID studies, with a focus on preprocessing, lineage-specific clustering, and downstream analysis toward trajectory modeling.
+Computational analysis of longitudinal Long COVID single-cell data, with a focus on **clonotype-informed immune cell trajectory reconstruction**, graph-based modeling, and uncertainty quantification.
+
+This work is conducted in the **Ji Lab, Department of Biostatistics, Johns Hopkins Bloomberg School of Public Health**, under Prof. Hongkai Ji. The trajectory-modeling component also supports my M.S.E. thesis in Applied Mathematics and Statistics at Johns Hopkins University, advised by Prof. Holden Lee.
+
+---
 
 ## Overview
 
-This project integrates single-cell transcriptomic data with immune receptor (TCR/BCR) information to explore immune cell states and their potential transitions.
+This project develops a computational framework for reconstructing immune cell-state trajectories from longitudinal single-cell RNA sequencing data.
 
-The workflow currently includes:
-- Data preprocessing and integration
-- Lineage-specific reclustering (T and B cells)
-- Marker-based annotation and validation
-- Pseudobulk extraction for downstream differential expression analysis
+The analysis integrates:
 
-Future work aims to incorporate:
-- Trajectory inference
-- Clonotype-informed modeling of cell state transitions
+- single-cell RNA-seq data
+- longitudinal patient and sampling metadata
+- T-cell receptor (TCR) clonotype information
+- lineage-specific transcriptional embeddings
+- graph-based trajectory reconstruction
+- probabilistic uncertainty modeling
 
----
+The current implemented trajectory framework focuses on **T cells and patient-specific TCR clonotypes**.
 
-## Repository Structure
+Cells sharing the same patient-specific clonotype are treated as biologically informed **anchor cells**, while intermediate cells are selected from a shared transcriptional-state graph according to graph geometry.
 
-### `Integration-Lineage-by-Clusters`
-Scripts and workflows for:
-- Subsetting T and B cell lineages
-- Reintegrating lineage-specific data
-- Reclustering using PCA / Harmony / Leiden
-- Generating UMAP visualizations and marker-based annotations
-
-### `Extract-Pseudobulk`
-Code for:
-- Aggregating single-cell data into pseudobulk profiles
-- Preparing inputs for differential expression analysis
+Bridge cells are interpreted as **geometric/transcriptional intermediates**, rather than inferred biological ancestors.
 
 ---
 
-## Data
+## Current Research Questions
 
-This project operates on:
-- scRNA-seq data (AnnData `.h5ad` format)
-- Associated metadata (sample, patient, timepoint, etc.)
-- Optional TCR/BCR clonotype information
+The project asks:
 
-Data is not included in this repository due to size and privacy constraints.
-
----
-
-## Methods Summary
-
-1. **Preprocessing**
-   - Quality control (gene counts, mitochondrial percentage)
-   - Normalization and log transformation
-
-2. **Dimensionality Reduction**
-   - PCA (with optional Harmony batch correction)
-
-3. **Clustering**
-   - Leiden clustering on lineage-specific subsets
-
-4. **Annotation**
-   - Marker gene-based manual cell type assignment
-
-5. **Validation**
-   - Heatmaps of canonical markers
-   - UMAP visualization of gene expression
+1. How can clonotype information constrain trajectory reconstruction beyond transcriptional similarity alone?
+2. Which graph-based reconstruction methods produce stable connections between clonotype-sharing cells?
+3. Which intermediate cell states repeatedly occur along reconstructed trajectories?
+4. How sensitive are inferred trajectories to the reconstruction method?
+5. How can uncertainty over alternative feasible trajectory structures be quantified probabilistically?
+6. How can longitudinal timepoints and biological annotations be used to validate inferred trajectory structures?
 
 ---
 
-## Notes
+## Dataset
 
-- Heatmaps are generated without per-gene standardization to preserve relative expression levels across groups.
-- T cell populations exhibit more continuous transcriptional states compared to B cells, which show more discrete marker patterns.
+The current analysis uses longitudinal PBMC single-cell data from **16 patients**.
 
----
+The trajectory pipeline operates on a cleaned T-cell dataset containing more than **155,000 cells**.
 
-## Future Directions
+Available information includes:
 
-- Incorporation of TCR/BCR clonotype information
-- Graph-based modeling of cell-state trajectories
-- Integration with longitudinal timepoint data
+- scRNA-seq expression profiles
+- patient identifiers
+- longitudinal sampling timepoints
+- TCR clonotype information
+- lineage-specific clustering
+- provisional biological annotations
+- RNA and ADT marker profiles
 
----
-
-## Requirements
-
-Typical dependencies include:
-- Python 3.9+
-- scanpy
-- anndata
-- pandas
-- numpy
-- matplotlib
+Raw and processed biological data are not included in this repository because of data size and privacy restrictions.
 
 ---
 
-## Author
+## Analysis Workflow
 
-Jiatong Gao  
-Applied Mathematics & Statistics, Johns Hopkins University
+### 1. Single-Cell Preprocessing
+
+The upstream workflow includes:
+
+- cell- and gene-level quality control
+- normalization and log transformation
+- highly variable gene selection
+- dimensionality reduction with PCA
+- sample-level batch integration with Harmony
+- nearest-neighbor graph construction
+- Leiden clustering
+- UMAP visualization
+
+Immune receptor genes are retained for biological interpretation but excluded from the features used to construct the transcriptional embedding.
 
 ---
 
-## License
+### 2. Lineage-Specific Reintegration and Reclustering
 
-See `LICENSE` for details.
+T- and B-cell populations are processed independently after global integration.
+
+Current workflows include:
+
+- lineage subsetting
+- lineage-specific PCA
+- Harmony integration
+- nearest-neighbor construction
+- reclustering
+- comparison of clustering configurations
+- generation of cluster-level summaries
+
+The current trajectory implementation uses the cleaned **T-cell lineage**.
+
+---
+
+### 3. Cell-State Annotation
+
+Computational subclusters are reviewed using multiple sources of evidence:
+
+- CellTypist predictions
+- canonical RNA markers
+- ADT / surface-protein profiles
+- cluster-level marker heatmaps
+- UMAP visualization
+- expert biological review
+
+Current annotations are treated as provisional biological interpretations rather than ground-truth labels.
+
+---
+
+## TCR Clonotype Integration
+
+TCR metadata are integrated with the cleaned T-cell object using exact cell identifiers.
+
+Clonotypes are defined using a **patient-specific TCR key**:
+
+```text
+(patient identity, cleaned TCR clonotype)
