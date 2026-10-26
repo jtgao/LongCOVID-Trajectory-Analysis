@@ -29,7 +29,10 @@ LongCOVID-Trajectory-Analysis/
 │   ├── 06_steiner_reconstruction/06_patient_tcr_steiner.py
 │   ├── 07_cross_method_comparison/07_compare_reconstruction_methods.py
 │   ├── 08_visualization/08_visualize_reconstruction_examples.py
-│   └── 09_method_validation/09_handwritten_method_validation.py
+│   ├── 09_method_validation/09_handwritten_method_validation.py
+│   └── 10_2d_knn_umap_validation/
+│       ├── 10_2d_knn_umap_validation.py
+│       └── README.md
 └── lineage_processing/
     ├── reintegration/reintegrate_lineages_by_cluster.py
     ├── clustering/
@@ -96,11 +99,11 @@ The implementation checks cell identifiers, patient consistency, and grouping co
 
 ## Shared kNN Graph
 
-Stage 02 reads an existing cleaned T-cell neighbor-distance graph in **Harmony-corrected PCA space**. It validates the representation and symmetrizes existing neighbor relationships; it does not infer graph geometry from UMAP.
+Stage 02 reads an existing cleaned T-cell neighbor-distance graph in **Harmony-corrected PCA space**. It validates the representation and symmetrizes existing neighbor relationships; it does not infer production graph geometry from UMAP.
 
 The preserved implementation expects `X_pca_harmony` with 50 dimensions, `X_umap`, `obsp["distances"]`, and neighbor metadata specifying 15 neighbors and Euclidean distance. Required observation fields include `patient`, `time_month`, and `manual_cell_type`.
 
-All reconstructed edges come from this existing kNN graph. UMAP coordinates are for visualization only.
+All production reconstruction edges come from this existing kNN graph. UMAP coordinates serve only as visualization coordinates in stages 02–08. Stage 10 constructs a separate diagnostic graph directly on 2D UMAP coordinates.
 
 ## Rooted Shortest Paths
 
@@ -130,9 +133,29 @@ Stage 08 plots selected disagreements using separately supplied **Seurat coordin
 
 Figure titles and filenames use generic example labels by default. `--show-identifiers` explicitly enables patient/clonotype labels. Generated tables, manifests, and console output can still contain identifiers and must remain private; generic figure labels are not a complete de-identification procedure.
 
+## 2D kNN / UMAP Diagnostic
+
+Stage 10 provides a separate technical check using the same two-dimensional geometry for graph construction and visualization.
+
+Production edges are defined in 50-dimensional Harmony space but displayed on 2D UMAP. Projection can make valid edges appear long or appear to skip visually intermediate cells. The diagnostic constructs a separate symmetrized 15-nearest-neighbor graph directly on the existing Seurat UMAP coordinates, with Euclidean edge weights in those coordinates.
+
+It then applies rooted shortest paths, candidate-graph MST, and KMB Steiner reconstruction to selected patient-specific clonotypes. The diagnostic follows the reconstruction logic of stages 04–06 through standalone routines rather than directly importing those production scripts.
+
+The diagnostic:
+
+- Retains the saved stage-02 cell indexing and stage-03 anchor definitions.
+- Builds the graph across the supplied full cell set before selecting examples.
+- Displays full and zoomed reconstructions, including available background kNN edges in the zoomed views.
+- Checks selected-edge membership, anchor retention, connectivity, and tree structure.
+- Saves graph files, reconstruction tables, figures, validation summaries, and a provenance manifest in a private run directory.
+
+Every selected reconstruction edge must belong to the diagnostic input graph. The reconstruction does **not** need to use every available edge or include every grey background cell.
+
+This stage does not modify the production graph, determine an optimal embedding dimensionality, establish biological validity, or independently validate the original 50D outputs. Report successful checks only after inspecting actual run outputs.
+
 ### Trajectory runtime configuration
 
-Stages 01–08 take `--project-dir`: a user-selected run directory containing numbered stage folders and their `outputs/` subdirectories. It is independent of the source-code directory.
+Stages 01–08 and 10 take `--project-dir`: a user-selected run directory containing numbered stage folders and their `outputs/` subdirectories. It is independent of the source-code directory. Stage 09 uses its own output directory.
 
 | Stage | Additional required inputs |
 |---|---|
@@ -142,8 +165,21 @@ Stages 01–08 take `--project-dir`: a user-selected run directory containing nu
 | 04–07 | Upstream stage outputs under `--project-dir` |
 | 08 | `--seurat-coordinates`: external coordinate CSV/CSV.GZ |
 | 09 | Independent `--out-dir`; no biological input |
+| 10 | Stage-02 cell index, stage-03 anchors, and Seurat coordinates; supply `--seurat-coordinates` explicitly |
 
 Stages 04 and 05 use stage-02/03 outputs; stage 06 additionally uses stage-05 candidate information. Stage 07 compares stages 04–06; stage 08 consumes the comparison and reconstruction tables.
+
+Stage 10 independently reconstructs examples on its diagnostic graph. It does not require rerunning or replacing stages 02–08. Use `--help` to inspect available diagnostic parameters.
+
+Example invocation:
+
+```bash
+python trajectory_model/10_2d_knn_umap_validation/10_2d_knn_umap_validation.py \
+  --project-dir /path/to/private/run \
+  --seurat-coordinates /path/to/private/Seurat_coordinates.csv.gz
+```
+
+Keep the run directory outside this public repository. It must contain the compatible stage-02 and stage-03 outputs described above.
 
 ## Probabilistic Extension
 
@@ -155,11 +191,13 @@ Stage 09 contains a synthetic weighted graph, manually specified expected recons
 
 The validation implementation is separate from the production scripts. It demonstrates algorithmic behavior but is not a regression-test suite directly importing stages 04–06, nor evidence of biological correctness.
 
-This public-copy sanitization was reviewed statically only. No project code or tests were executed as part of that process; runtime portability remains unverified.
+Stage 10 adds a geometry-matched 2D diagnostic. Its validation checks concern reconstructions on that diagnostic graph. It is separate from both biological validation and future MCMC sampler validation.
+
+The original public-copy sanitization was reviewed statically. Stage-10 Python and shell syntax were checked during preparation, but syntax checks do not establish scientific correctness or runtime portability. No private diagnostic outputs or successful-run claims are included in this release.
 
 ## Data Availability
 
-Private raw data, processed objects, patient metadata, TCR tables, and generated results are not included. Users must supply compatible authorized inputs. External stage-03 metadata and stage-08 coordinates are explicit dependencies.
+Private raw data, processed objects, patient metadata, TCR tables, and generated results are not included. Users must supply compatible authorized inputs. External stage-03 metadata and Seurat coordinate exports for stages 08 and 10 are explicit dependencies.
 
 Consequently, this repository is **not currently an end-to-end reproducible package from raw data to final results**. The ignore rules keep common biological objects, tables, figures, and logs out of ordinary version-control additions.
 
@@ -169,6 +207,7 @@ Consequently, this repository is **not currently an end-to-end reproducible pack
 - Harmony integration through Scanpy/harmonypy; CellTypist for annotation review.
 - R: Seurat v5 APIs, SeuratObject, dplyr.
 - Sparse weighted graphs, Dijkstra shortest paths, minimum spanning trees, and KMB-style Steiner approximation.
+- Stage 10 uses SciPy's `cKDTree` for neighbor search in 2D UMAP space.
 
 Dependencies and model files must be available in the user's environment. This release does not provide a tested environment lockfile or bundled models.
 
@@ -180,7 +219,7 @@ The trajectory/probabilistic component also supports an **M.S.E. thesis in Appli
 
 ## Current Status
 
-**Implemented in source:** lineage reintegration/reclustering; annotation and marker review; patient-specific TCR anchors; shared T-cell kNN graph preparation; rooted shortest paths; MST reconstruction; KMB Steiner approximation; bridge-cell summaries; cross-method comparison; synthetic method validation.
+**Implemented in source:** lineage reintegration/reclustering; annotation and marker review; patient-specific TCR anchors; shared T-cell kNN graph preparation; rooted shortest paths; MST reconstruction; KMB Steiner approximation; bridge-cell summaries; cross-method comparison; synthetic method validation; separate 2D kNN/UMAP diagnostic.
 
 **In development:** MCMC over feasible alternative trees, probabilistic inclusion summaries, and longitudinal biological validation. B-cell/BCR trajectory modeling is a future extension. No completed probabilistic or biological findings are claimed here.
 
