@@ -68,3 +68,13 @@ tmp/
 temp/
 cache/
 .cache/
+
+/trajectory_model/10_2d_knn_umap_validation/outputs/
+
+/trajectory_model/10_2d_knn_umap_validation/logs/
+
+**/__pycache__/
+
+*.pyc
+
+slurm_*.out
